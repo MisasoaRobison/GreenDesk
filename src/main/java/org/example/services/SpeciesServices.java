@@ -1,15 +1,15 @@
 package org.example.services;
 
-import org.example.repestories.*;
+import org.example.repositories.*;
 import org.example.entites.*;
 import org.springframework.stereotype.Service;
 
 
 @Service
 public class SpeciesServices {
-    private SpeciesRepestory species;
+    private SpeciesRepository species;
 
-    public SpeciesServices(SpeciesRepestory species) {
+    public SpeciesServices(SpeciesRepository species) {
         this.species = species;
     }
 

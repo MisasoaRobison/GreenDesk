@@ -1,6 +1,6 @@
 package org.example.controllers;
 
-import org.example.repestories.*;
+import org.example.repositories.*;
 import org.example.entites.*;
 import org.example.services.*;
 import org.example.dto.*;
@@ -20,7 +20,7 @@ public class PlantController {
     }
 
     @GetMapping("/{id}/state")
-    public PlantState getState(@PathVariable Long id){
+    public PlantState getState(@PathVariable String id){
         return plantServices.getState(id);
     }
 }

@@ -1,6 +1,6 @@
 package org.example.controllers;
 
-import org.example.repestories.*;
+import org.example.repositories.*;
 import org.example.entites.*;
 import org.example.services.*;
 import org.example.dto.*;

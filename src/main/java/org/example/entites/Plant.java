@@ -1,20 +1,25 @@
 package org.example.entites;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DBRef;
+
 import java.time.LocalDate;
 import lombok.*;
 
 
-@Entity
+
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Document(collection = "plants")
 public class Plant{
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private String name;
 
-    @ManyToOne
+    @DBRef
     private Species species;
 
     private double height;

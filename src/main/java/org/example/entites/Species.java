@@ -1,15 +1,18 @@
 package org.example.entites;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 import lombok.*;
 
 
-@Entity
+
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Document(collection = "species")
 public class Species{
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private String name; //le nom de l'espèce
     private double waterNeeds; //les besoins en eau
@@ -21,4 +24,10 @@ public class Species{
     //Les luminosités min et max
     private double LuminosityMin;
     private double LuminosityMax;
+
+    public Species(String id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
 }
