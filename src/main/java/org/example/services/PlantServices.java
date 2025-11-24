@@ -1,32 +1,32 @@
 package org.example.services;
 
-import org.example.repositories.*;
-import org.example.entites.*;
 import org.example.dto.*;
+import org.example.entites.*;
+import org.example.exceptions.ResourceNotFoundException;
+import org.example.repositories.*;
 import org.springframework.stereotype.Service;
-import lombok.*;
 
 @Service
 public class PlantServices {
-    private PlantRepository plant;
+    private final PlantRepository plantRepository;
+    private final SensorSimulator sensorSimulator;
+    private final GrowthEngine growthEngine;
 
-    private SensorSimulator sensorSimulator;
-    private GrowthEngine growthEngine;
-
-    public PlantServices(PlantRepository plant, SensorSimulator sensorSimulator, GrowthEngine growthEngine){
-        this.plant = plant;
+    public PlantServices(PlantRepository plantRepository, SensorSimulator sensorSimulator, GrowthEngine growthEngine){
+        this.plantRepository = plantRepository;
         this.sensorSimulator = sensorSimulator;
         this.growthEngine = growthEngine;
     }
 
     public Plant createPlant(Plant plant) {
-        return this.plant.save(plant);
+        return this.plantRepository.save(plant);
     }
 
     public PlantState getState(String id){
-        Plant plant = this.plant.findById(id).orElseThrow(()->new RuntimeException("Plant not found"));
-        SensorData sensors = sensorSimulator.readSensorData(plant);
-        GrowthState growth = growthEngine.calculateGrowth(plant, sensors);
+        Plant foundPlant = this.plantRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Plante introuvable"));
+        SensorData sensors = sensorSimulator.readSensorData(foundPlant);
+        GrowthState growth = growthEngine.calculateGrowth(foundPlant, sensors);
 
         return new PlantState(sensors, growth);
     }

@@ -7,13 +7,13 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class SpeciesServices {
-    private SpeciesRepository species;
+    private final SpeciesRepository speciesRepository;
 
-    public SpeciesServices(SpeciesRepository species) {
-        this.species = species;
+    public SpeciesServices(SpeciesRepository speciesRepository) {
+        this.speciesRepository = speciesRepository;
     }
 
     public Species createSpecies(Species species){
-        return this.species.save(species);
+        return this.speciesRepository.save(species);
     }
 }

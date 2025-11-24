@@ -5,6 +5,9 @@ public class SensorData {
     private double temperature;
     private double luminosity;
 
+    public SensorData() {
+    }
+
     public SensorData(double humidity, double temperature, double luminosity){
         this.humidity = humidity;
         this.temperature = temperature;

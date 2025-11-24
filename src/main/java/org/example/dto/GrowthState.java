@@ -4,6 +4,9 @@ public class GrowthState {
     private double newHeight;
     private double growthRate;
 
+    public GrowthState() {
+    }
+
     public GrowthState(double newHeight, double growthRate) {
         this.newHeight = newHeight;
         this.growthRate = growthRate;

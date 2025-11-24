@@ -4,6 +4,9 @@ public class PlantState {
     private SensorData sensors;
     private GrowthState growth;
 
+    public PlantState() {
+    }
+
     public PlantState(SensorData sensors, GrowthState growth){
         this.sensors = sensors;
         this.growth = growth;
