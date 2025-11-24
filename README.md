@@ -177,9 +177,6 @@ Le `GrowthEngine` calcule la croissance des plantes en fonction :
 
 Le `SensorSimulator` génère des séries jour/nuit réalistes **(température, humidité, luminosité)** avec bruit configurable (`Environment`) et enregistre chaque lecture dans **MongoDB** (`SensorReading`).
 
-## Auteur
-
-MisasoaRobison
 
 ## Licence
 
