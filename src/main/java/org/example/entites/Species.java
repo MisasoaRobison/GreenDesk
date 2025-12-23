@@ -2,101 +2,110 @@ package org.example.entites;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.Field;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PositiveOrZero;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import org.springframework.data.mongodb.core.index.Indexed;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Document(collection = "species")
+
+@Document(collection ="species")
 public class Species {
     @Id
     private String id;
 
-    @NotBlank(message = "Le nom de l'espèce est obligatoire")
-    private String name; // le nom de l'espèce
+    @Indexed(unique = true)
+    @NotBlank (message = "on doit avoir le nom de l'espece")
+    private String name;
 
-    @PositiveOrZero(message = "Les besoins en eau doivent être positifs ou nuls")
-    private double waterNeeds; // les besoins en eau
+    private double optimalWaterNeeds;
+    private double optimalTemperature;
+    private double optimalHumidity;
+    private double optimalLuxNeeds;
+    private double baseGrowthRate; // cm par cycle (par ex. par heure ou par jour)
+    private double seedProductionRate;
 
-    // Les temperatures min et max
-    @Field("TempMin")
-    private double tempMin;
+    //--------------CONSTRCUTEURS--------------
 
-    @Field("TempMax")
-    private double tempMax;
-
-    // Les luminosités min et max
-    @Field("LuminosityMin")
-    private double luminosityMin;
-
-    @Field("LuminosityMax")
-    private double luminosityMax;
-
-    public Species(String id, String name) {
-        this.id = id;
+    //Constructeur complet : à utiliser lorsqu'on connait exactement une espece de plante et tous les attributs
+    public Species(String name, double optimalWaterNeeds, double optimalTemperature, double optimalHumidity, double optimalLuxNeeds, double baseGrowthRate, double seedProductionRate) {
         this.name = name;
+        this.optimalWaterNeeds = optimalWaterNeeds; //en mL
+        this.optimalTemperature = optimalTemperature; //en °C
+        this.optimalHumidity = optimalHumidity; //en %
+        this.optimalLuxNeeds = optimalLuxNeeds; //en lux
+        this.baseGrowthRate = baseGrowthRate;
+        this.seedProductionRate = seedProductionRate; //entre 0-1
     }
 
-    // Getters et Setters explicites pour la compatibilité IDE
-    public String getId() {
+    //Constrcuteur à utiliser pour faire des tests, tout est généré aléatoirement à part le nom
+    public Species(String name){
+        this.name = name;
+        this.optimalWaterNeeds = 100 + Math.random()*400;
+        this.optimalTemperature = 15 + Math.random()*15;
+        this.optimalHumidity = 30 + Math.random() * 50;
+        this.optimalLuxNeeds = 1000 + Math.random() * 9000;
+        this.baseGrowthRate = 0.1 + Math.random() * 0.9;
+        this.seedProductionRate = 0.1 + Math.random()*0.9;
+    }
+    protected Species() {}
+
+
+    public boolean isOptimalWaterNeeds(double waterLevel) {
+        return Math.abs(optimalWaterNeeds - waterLevel) <= 15; //±15 de tolérance en mL
+    }
+
+    public boolean isOptimalTemperature(double temperature) {
+        return Math.abs(optimalTemperature - temperature) <= 4; //±4°C de tolérance
+    }
+
+    public boolean isOptimalHumidity(double humidity) {
+        return Math.abs(optimalHumidity - humidity) <= 10;//±10% de tolérance
+    }
+
+    public double tempStressFactor(double temperature) {
+        double diff = Math.abs(temperature - optimalTemperature);
+        double tolerance = 4; // ± tolérance définie dans Species
+        if (diff <= tolerance) return 0.0; // pas de stress dans la plage tolérée
+
+        // Stress normalisé : au-delà de la tolérance, on utilise le ratio de l’écart par rapport à l’optimal
+        return Math.min(1.0, (diff - tolerance) / optimalTemperature);
+    }
+
+    public double humidityStressFactor(double humidity) {
+        double diff = Math.abs(humidity - optimalHumidity);
+        double tolerance = 10; // ± tolérance définie dans Species
+        if (diff <= tolerance) return 0.0; // pas de stress
+
+        return Math.min(1.0, (diff - tolerance) / optimalHumidity);
+    }
+
+
+    public double lightStressFactor(double lux){
+        return Math.max(0, (optimalLuxNeeds - lux)/optimalLuxNeeds);//entre 0-1 pour le stress en raison d'un manque de lumière le cas échéant
+    }
+
+    //--------------Getters et Setters--------------
+    public String getId(){
         return id;
     }
-
-    public void setId(String id) {
-        this.id = id;
-    }
-
-    public String getName() {
+    public String getName(){
         return name;
     }
-
-    public void setName(String name) {
-        this.name = name;
+    public double getOptimalWaterNeeds(){
+        return optimalWaterNeeds;
     }
-
-    public double getWaterNeeds() {
-        return waterNeeds;
+    public double getOptimalTemperature(){
+        return optimalTemperature;
     }
-
-    public void setWaterNeeds(double waterNeeds) {
-        this.waterNeeds = waterNeeds;
+    public double getOptimalHumidity(){
+        return optimalHumidity;
     }
-
-    public double getTempMin() {
-        return tempMin;
+    public double getOptimalLuxNeeds(){
+        return optimalLuxNeeds;
     }
-
-    public void setTempMin(double tempMin) {
-        this.tempMin = tempMin;
+    public double getSeedProductionRate(){
+        return seedProductionRate;
     }
-
-    public double getTempMax() {
-        return tempMax;
-    }
-
-    public void setTempMax(double tempMax) {
-        this.tempMax = tempMax;
-    }
-
-    public double getLuminosityMin() {
-        return luminosityMin;
-    }
-
-    public void setLuminosityMin(double luminosityMin) {
-        this.luminosityMin = luminosityMin;
-    }
-
-    public double getLuminosityMax() {
-        return luminosityMax;
-    }
-
-    public void setLuminosityMax(double luminosityMax) {
-        this.luminosityMax = luminosityMax;
+    public double getBaseGrowthRate() {
+        return baseGrowthRate;
     }
 }
