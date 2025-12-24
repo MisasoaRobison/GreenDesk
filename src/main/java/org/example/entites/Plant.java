@@ -29,7 +29,7 @@ public class Plant {
 
     private double heightCm;      // hauteur en cm
     //--------------CONSTRCUTEURS--------------
-    //Constructeur à utiliser lorsque l'on créè un une plante avec des données de l'environnement
+    //Constructeur à utiliser lorsque l'on créè une plante avec des données de l'environnement
     public Plant(String name, Species species, double waterLevel, double temperature, double humidity, double lux) {
         this.name = name;
         this.species = species;
