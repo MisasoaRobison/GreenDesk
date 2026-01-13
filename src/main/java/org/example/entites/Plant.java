@@ -28,6 +28,12 @@ public class Plant {
     private PlantState plantState; //état de la plante en fonction de son évaluation par rapport aux conditions optimales de l'espèce
 
     private double heightCm;      // hauteur en cm
+    
+    // Nouveaux attributs pour L2-F1 : gestion des forêts
+    private String forestId;      // ID de la forêt (optionnel)
+    private Integer x;            // Position X dans la forêt (optionnel)
+    private Integer y;            // Position Y dans la forêt (optionnel)
+    private int variationSeed;    // Graine de variation pour R2 (diversité)
     //--------------CONSTRCUTEURS--------------
     //Constructeur à utiliser lorsque l'on créè une plante avec des données de l'environnement
     public Plant(String name, Species species, double waterLevel, double temperature, double humidity, double lux) {
@@ -42,6 +48,9 @@ public class Plant {
         this.stressIndex = calculateStressIndex();
         this.plantState = evaluateState();
         this.heightCm = 0.0;
+        
+        // Initialiser variationSeed avec une valeur aléatoire
+        this.variationSeed = (int) (Math.random() * 1000000);
     }
 
     //Constructeur à utiliser pour des test
@@ -57,6 +66,9 @@ public class Plant {
         this.stressIndex = 0.0;
         this.plantState = PlantState.HEALTHY; //car on est dans les plages optimales
         this.heightCm = 0.0;
+        
+        // Initialiser variationSeed avec une valeur aléatoire
+        this.variationSeed = (int) (Math.random() * 1000000);
     }
     protected Plant() {}
 
@@ -165,5 +177,37 @@ public class Plant {
     }
     public void setHeightCm(double heightCm) {
         this.heightCm = heightCm;
+    }
+    
+    public String getForestId() {
+        return forestId;
+    }
+    
+    public void setForestId(String forestId) {
+        this.forestId = forestId;
+    }
+    
+    public Integer getX() {
+        return x;
+    }
+    
+    public void setX(Integer x) {
+        this.x = x;
+    }
+    
+    public Integer getY() {
+        return y;
+    }
+    
+    public void setY(Integer y) {
+        this.y = y;
+    }
+    
+    public int getVariationSeed() {
+        return variationSeed;
+    }
+    
+    public void setVariationSeed(int variationSeed) {
+        this.variationSeed = variationSeed;
     }
 }

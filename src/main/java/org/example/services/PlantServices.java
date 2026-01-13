@@ -21,6 +21,9 @@ public class PlantServices {
 
     @Autowired
     private SpeciesRepository speciesRepository;
+    
+    @Autowired
+    private EffectService effectService;
 
 
     // Création avec toutes les valeurs explicites
@@ -63,16 +66,28 @@ public class PlantServices {
     }
 
     public void evolvePlant(Plant plant, EnvironmentData env) {
-        // 1️⃣ Calcul du stress pour chaque paramètre
-        double waterStress = Math.abs(plant.getWaterLevel() - plant.getSpecies().getOptimalWaterNeeds())
+        // Récupérer les modificateurs des effets actifs
+        EffectService.EffectModifiers modifiers = effectService.calculateTotalModifiers(plant.getId());
+        
+        // Appliquer les modificateurs aux paramètres environnementaux
+        double effectiveTemp = env.getTemperature() + modifiers.temperature;
+        double effectiveHumidity = env.getHumidity() + modifiers.humidity;
+        double effectiveLux = env.getLux() + modifiers.lux;
+        double effectiveWater = plant.getWaterLevel() + modifiers.water;
+        
+        // 1️⃣ Calcul du stress pour chaque paramètre (avec valeurs modifiées par les effets)
+        double waterStress = Math.abs(effectiveWater - plant.getSpecies().getOptimalWaterNeeds())
                 / plant.getSpecies().getOptimalWaterNeeds();
 
-        double tempStress = plant.getSpecies().tempStressFactor(env.getTemperature());
-        double humidityStress = plant.getSpecies().humidityStressFactor(env.getHumidity());
-        double lightStress = plant.getSpecies().lightStressFactor(env.getLux());
+        double tempStress = plant.getSpecies().tempStressFactor(effectiveTemp);
+        double humidityStress = plant.getSpecies().humidityStressFactor(effectiveHumidity);
+        double lightStress = plant.getSpecies().lightStressFactor(effectiveLux);
 
         // 2️⃣ Stress total (moyenne)
         double totalStress = (waterStress + tempStress + humidityStress + lightStress) / 4.0;
+        
+        // Appliquer la réduction de stress des effets
+        totalStress = Math.max(0.0, totalStress - modifiers.stressReduction);
 
         // 3️⃣ Mise à jour progressive du stressIndex
         double stressDelta = totalStress * 0.1; // facteur de progression par tick
@@ -81,9 +96,16 @@ public class PlantServices {
 
         updatePlantState(plant);
 
-        // 5️⃣ Croissance proportionnelle au stress
-        double growthFactor = plant.getSpecies().getBaseGrowthRate() * (1 - plant.getStressIndex());
+        // 5️⃣ Croissance proportionnelle au stress + modificateur des effets
+        double baseGrowth = plant.getSpecies().getBaseGrowthRate();
+        double growthWithEffects = baseGrowth * (1 + modifiers.growthRate);
+        double growthFactor = growthWithEffects * (1 - plant.getStressIndex());
         plant.setHeightCm(plant.getHeightCm() + growthFactor);
+        
+        // Mettre à jour le niveau d'eau de la plante si des effets l'affectent
+        if (modifiers.water != 0.0) {
+            plant.setWaterLevel(effectiveWater);
+        }
 
         plantRepository.save(plant);
     }

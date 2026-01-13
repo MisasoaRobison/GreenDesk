@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repository pour l'historique des lectures capteurs
@@ -28,7 +29,7 @@ public interface SensorReadingRepository extends MongoRepository<SensorReading, 
     /**
      * Lecture la plus récente pour une plante
      */
-    List<SensorReading> findByPlantIdOrderByTimestampDescLimit1(String plantId);
+    Optional<SensorReading> findFirstByPlantIdOrderByTimestampDesc(String plantId);
 
     /**
      * Lectures avec humidité trop basse (alerte déshydratation)
