@@ -1,13 +1,14 @@
-package org.example.controllers.forest;
+package org.example.controllers;
 
-import org.example.entites.forest.Forest;
-import org.example.entites.plant.Plant;
+import org.example.entites.Forest;
+import org.example.entites.Plant;
 import org.example.services.ForestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+//import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -96,7 +97,7 @@ public class ForestController {
      * Récupère toutes les plantes d'une forêt.
      */
     @GetMapping("/{forestId}/plants")
-    public ResponseEntity<List<Plant>> getPlantsInForest(@PathVariable String forestId) {
+    public ResponseEntity<List<Plant>> getPlantsInForest(@PathVariable  String forestId) {
         List<Plant> plants = forestService.getPlantsInForest(forestId);
         return ResponseEntity.ok(plants);
     }
@@ -107,19 +108,33 @@ public class ForestController {
      * 
      * Query params: ?x=3&y=5
      */
-    @DeleteMapping("/{forestId}/plants")
-    public ResponseEntity<?> removePlantFromForest(
-            @PathVariable String forestId,
-            @RequestParam int x,
-            @RequestParam int y) {
-        try {
-            Forest forest = forestService.removePlantFromForest(forestId, x, y);
-            return ResponseEntity.ok(forest);
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", e.getMessage()));
-        }
+   @DeleteMapping("/{forestId}/plants")
+public ResponseEntity<?> removePlantFromForest(
+        @PathVariable String forestId,
+        @RequestParam int x,
+        @RequestParam int y) {
+
+    try {
+        forestService.removePlantFromForest(forestId, x, y);
+
+        // Option A : renvoyer 204 No Content (classique pour DELETE réussi)
+        return ResponseEntity.noContent().build();
+
+        // Option B : si tu veux renvoyer la forêt mise à jour quand même
+        // Forest updated = forestService.getForestById(forestId);
+        // return ResponseEntity.ok(updated);
+
+    } catch (IllegalArgumentException | IllegalStateException e) {
+        // Cas typiques : position vide, hors limite, etc.
+        return ResponseEntity.badRequest()
+                .body(Map.of("error", e.getMessage()));
+
+    } catch (Exception e) {
+        // Forêt introuvable ou autre erreur grave
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("error", e.getMessage()));
     }
+}
     
     /**
      * DELETE /api/forests/{forestId}
