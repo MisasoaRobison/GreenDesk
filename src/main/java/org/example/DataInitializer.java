@@ -1,9 +1,9 @@
 package org.example;
 
 
-import org.example.entites.forest.Forest;
-import org.example.entites.plant.Plant;
-import org.example.entites.species.Species;
+import org.example.entites.Forest;
+import org.example.entites.Plant;
+import org.example.entites.Species;
 import org.example.repositories.ForestRepository;
 import org.example.repositories.PlantRepository;
 import org.example.repositories.SpeciesRepository;
@@ -17,6 +17,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final SpeciesRepository speciesRepository;
     private final PlantRepository plantRepository;
+    
     private final ForestRepository forestRepository;
 
     // Injection des dépendances (Les outils pour parler à la BDD)
