@@ -1268,6 +1268,16 @@ Les règles métier appliquées sont les suivantes :
 |---|---|---|---|---|
 | `GET` | `/api/forests/compare` | Comparer deux forêts | `forestId1`, `forestId2` | Statistiques des deux forêts, scores et gagnant |
 
+##### 2.3.5.1 Interface du comparateur de forêts
+
+<div align="center">
+
+![Comparateur de forêts - Feature 3](../assets/images/api-capture-forest-comparison.png)
+
+</div>
+
+Cette vue montre le parcours utilisateur du comparateur : sélection de deux forêts, lancement de la comparaison, affichage du gagnant et détail des statistiques par forêt. Les pourcentages de plantes saines ou malades, le stress moyen et la diversité des espèces permettent de comprendre pourquoi une forêt obtient un meilleur score.
+
 #### 2.3.6 Tableau de bord analytique
 
 Le tableau de bord analytique complète le comparateur en donnant une vue globale de l'état du système. Il agrège toutes les plantes et produit des données directement exploitables par l'interface `analytics.html`.
@@ -1315,6 +1325,14 @@ L'interface analytique présente cinq visualisations principales :
 - barres verticales : distribution des espèces ;
 - radar : conditions environnementales moyennes par forêt ;
 - tableau : top N des plantes à risque avec export CSV.
+
+<div align="center">
+
+![Tableau de bord analytique - Feature 3](../assets/images/api-capture-analytics-dashboard.png)
+
+</div>
+
+Cette capture illustre la vue analytique globale : indicateurs principaux, répartition des états, classement des forêts par santé, distribution des espèces et conditions environnementales. Elle rend les agrégats produits par `AnalyticsService` directement lisibles par l'utilisateur.
 
 #### 2.3.9 Validation et tests associés
 
