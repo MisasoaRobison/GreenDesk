@@ -1272,7 +1272,7 @@ Les règles métier appliquées sont les suivantes :
 
 <div align="center">
 
-![Comparateur de forêts - Feature 3](../assets/images/api-capture-forest-comparison.png)
+![Comparateur de forêts - Feature 3](../assets/images/api-capture-analytics-dashboard.png)
 
 </div>
 
@@ -1328,7 +1328,7 @@ L'interface analytique présente cinq visualisations principales :
 
 <div align="center">
 
-![Tableau de bord analytique - Feature 3](../assets/images/api-capture-analytics-dashboard.png)
+![Tableau de bord analytique - Feature 3](../assets/images/api-capture-forest-comparison.png)
 
 </div>
 
