@@ -207,10 +207,11 @@ classDiagram
     CareTaskService --> CarePlan : alimente
 ```
 
-La transition vers S2 conserve les objets fondamentaux de S1 et leur ajoute deux chaînes métier :
+La transition vers S2 conserve les objets fondamentaux de S1 et leur ajoute trois chaînes métier :
 
 - **Feature météo** : `WeatherAlert` décrit l'événement externe et `PlantImpact` conserve son effet ISR/SPS sur une `Plant` existante ;
 - **Calendrier de soins** : `WnsCalculator` exploite l'état de la plante et son historique d'impacts pour permettre à `CareTaskService` de créer des `CareTask` regroupées dans un `CarePlan`.
+- **Comparateur de forêts et analytics** : `ForestComparisonService` exploite les plantes rattachées à deux forêts pour calculer un score de santé composite, tandis que `AnalyticsService` agrège les données globales pour alimenter le tableau de bord analytique.
 
 Cette évolution relie directement la supervision météo aux décisions de soin tout en réutilisant les entités `Species`, `Plant` et `Forest` déjà présentes dans S1.
 
@@ -219,6 +220,7 @@ Cette évolution relie directement la supervision météo aux décisions de soin
 | Socle S1 conservé | `Species`, `Plant`, `Forest` | Gestion des besoins biologiques, de l'état des plantes et de leur organisation en forêts |
 | Ajout S2 - Météo | `WeatherAlert`, `PlantImpact`, `WebhookReceiverService`, `PlantImpactCalculator` | Réception des alertes, calcul ISR/SPS et mise à jour des plantes existantes |
 | Ajout S2 - Soins | `CareTask`, `CarePlan`, `WnsCalculator`, `CareTaskService` | Transformation de l'état des plantes et des impacts météo en tâches de soins |
+| Ajout S2 - Comparaison et analytics | `ForestComparisonController`, `ForestComparisonService`, `ForestComparisonResult`, `AnalyticsController`, `AnalyticsService` | Comparaison en temps réel de deux forêts et visualisation analytique globale à partir de la santé, du stress et des états des plantes |
 
 ### 1.4 Organisation du projet
 
@@ -242,7 +244,7 @@ Cette évolution relie directement la supervision météo aux décisions de soin
 
 ## 2. Fonctionnalités détaillées
 
-Le périmètre DevOps 2 est organisé autour de deux fonctionnalités principales : le jumeau numérique météo et le calendrier de soins dynamique.
+Le périmètre DevOps 2 est organisé autour de trois fonctionnalités principales : le jumeau numérique météo, le calendrier de soins dynamique, puis le comparateur de forêts avec son tableau de bord analytique.
 
 ### 2.1 Feature 1 - Jumeau numérique météo / Tomorrow.io
 
@@ -1193,13 +1195,151 @@ Un test dédié à `CareTaskResponseDto` reste à compléter : aucun test spéci
 
 La Feature 2 repose sur la complémentarité entre un moteur de décision et un moteur d'exécution. Le moteur de décision, porté par le calcul WNS et la logique de priorisation, détermine si une intervention est nécessaire. Le moteur d'exécution, porté par `CareTaskService`, crée la tâche, la persiste, la synchronise avec Google Calendar et gère son cycle de vie. Cette séparation rend le calendrier de soins plus lisible, testable et évolutif.
 
+### 2.3 Feature 3 - Comparateur de forêts et tableau de bord analytique
+
+#### 2.3.1 Objectif de la fonctionnalité
+
+La Feature 3 ajoute un comparateur opérationnel entre deux forêts. L'objectif est de permettre à l'utilisateur de sélectionner deux `forestId`, puis d'obtenir une comparaison synthétique basée sur l'état réel des plantes stockées en base.
+
+Cette fonctionnalité permet notamment de :
+
+- comparer deux forêts à partir de leurs plantes ;
+- calculer les statistiques de santé de chaque forêt ;
+- mesurer le stress moyen ;
+- produire un score composite de santé ;
+- désigner automatiquement la forêt gagnante ;
+- retourner une réponse JSON structurée exploitable par l'interface ;
+- afficher un tableau de bord analytique avec des indicateurs globaux, des classements et des graphiques Chart.js.
+
+#### 2.3.2 Architecture technique
+
+La feature suit l'architecture en couches de GreenDesk :
+
+```text
+Controller -> Service -> Repository -> MongoDB
+```
+
+Le module comparateur expose un endpoint REST qui reçoit deux identifiants de forêts. Le contrôleur délègue le traitement au service, qui interroge MongoDB via les repositories pour récupérer les métadonnées des forêts et toutes les plantes associées. Le service calcule ensuite les statistiques, applique la formule de score et retourne un objet de comparaison structuré.
+
+Le module analytique suit la même architecture. Au chargement de `analytics.html`, le dashboard appelle sept endpoints REST indépendants. Chaque endpoint déclenche un calcul agrégé dans `AnalyticsService`, qui parcourt les plantes stockées en MongoDB. Les résultats sont retournés en JSON et consommés côté frontend par Chart.js pour générer les visualisations.
+
+| Classe | Rôle |
+|---|---|
+| `ForestComparisonController` | Expose le endpoint `GET /api/forests/compare?forestId1=X&forestId2=Y` |
+| `ForestComparisonService` | Contient la logique de calcul et de comparaison |
+| `PlantRepository` | Récupère les plantes filtrées par `forestId` |
+| `ForestRepository` | Récupère les métadonnées des forêts |
+| `ForestComparisonResult` | DTO de réponse contenant les statistiques des deux forêts et le gagnant |
+| `AnalyticsController` | Expose les sept endpoints `GET /api/analytics/...` |
+| `AnalyticsService` | Contient les calculs agrégés du tableau de bord |
+| `analytics.html` | Interface dashboard avec cinq visualisations Chart.js |
+
+#### 2.3.3 Algorithme de score composite de santé
+
+Pour chaque forêt, le service calcule les indicateurs suivants à partir de la liste de ses plantes :
+
+- nombre de plantes saines : `HEALTHY` ;
+- nombre de plantes stressées : `STRESSED` ;
+- nombre de plantes dormantes : `DORMANT` ;
+- nombre de plantes malades : `DISEASED` ;
+- stress moyen : somme des `stressIndex` divisée par le nombre total de plantes.
+
+La formule appliquée est :
+
+```text
+Score = (nbSaines / total * 100) - (nbMalades / total * 50) - (stressMoyen * 30)
+```
+
+Le premier terme récompense les plantes en bonne santé. Le deuxième terme pénalise fortement les plantes malades. Le troisième terme pénalise un stress moyen élevé. La forêt avec le score le plus élevé est déclarée gagnante.
+
+#### 2.3.4 Règles métier
+
+Les règles métier appliquées sont les suivantes :
+
+- une forêt sans plante retourne un score de `0` ;
+- le gagnant est déterminé automatiquement par comparaison des deux scores ;
+- en cas d'égalité, aucun gagnant n'est déclaré ;
+- la comparaison est toujours calculée en temps réel et n'est jamais mise en cache ;
+- les états des plantes utilisés sont ceux stockés en base : `HEALTHY`, `STRESSED`, `DORMANT`, `DISEASED`, conformément à l'énumération `PlantState`.
+
+#### 2.3.5 Endpoint API
+
+| Méthode | Endpoint | Rôle | Entrée | Sortie |
+|---|---|---|---|---|
+| `GET` | `/api/forests/compare` | Comparer deux forêts | `forestId1`, `forestId2` | Statistiques des deux forêts, scores et gagnant |
+
+#### 2.3.6 Tableau de bord analytique
+
+Le tableau de bord analytique complète le comparateur en donnant une vue globale de l'état du système. Il agrège toutes les plantes et produit des données directement exploitables par l'interface `analytics.html`.
+
+| Endpoint | Calcul effectué |
+|---|---|
+| `GET /api/analytics/global` | Total plantes, forêts actives, taux de santé global et stress moyen global |
+| `GET /api/analytics/stress-distribution` | Répartition en pourcentage des états `HEALTHY`, `STRESSED`, `DORMANT`, `DISEASED` |
+| `GET /api/analytics/forest-ranking` | Score composite de chaque forêt, trié par score décroissant |
+| `GET /api/analytics/species-distribution` | Nombre de plantes par espèce |
+| `GET /api/analytics/top-risk?limit=N` | Top N des plantes les plus à risque, triées par `stressIndex` décroissant |
+| `GET /api/analytics/species-health` | Pour chaque espèce : pourcentage de plantes saines, pourcentage de plantes malades et stress moyen |
+| `GET /api/analytics/environmental` | Moyennes de température, humidité, eau et luminosité par forêt |
+
+Pour les statistiques globales, le service récupère toutes les plantes et calcule :
+
+```text
+tauxSante = nbHealthy / total * 100
+stressMoyen = somme(stressIndex) / total
+nbForetsActives = nombre de forestId distincts non nuls
+```
+
+Pour le classement des forêts, le même score composite que le comparateur est utilisé :
+
+```text
+Score = (% saines * 100) - (% malades * 50) - (stressMoyen * 30)
+```
+
+#### 2.3.7 Règles métier analytics
+
+Les règles métier du tableau de bord analytique sont les suivantes :
+
+- toutes les données sont calculées en temps réel à chaque requête ;
+- les plantes sans `forestId` sont comptabilisées dans les statistiques globales mais exclues du classement des forêts ;
+- le top-risk est trié par `stressIndex` décroissant ;
+- les espèces sont regroupées par `species.getId()` pour éviter les doublons ;
+- l'export CSV du top-risk conserve les colonnes et les valeurs affichées dans le tableau.
+
+#### 2.3.8 Visualisations
+
+L'interface analytique présente cinq visualisations principales :
+
+- graphique en anneau : répartition des états ;
+- barres horizontales : classement des forêts par score ;
+- barres verticales : distribution des espèces ;
+- radar : conditions environnementales moyennes par forêt ;
+- tableau : top N des plantes à risque avec export CSV.
+
+#### 2.3.9 Validation et tests associés
+
+La validation de la Feature 3 repose sur plusieurs niveaux de tests :
+
+- test unitaire de `ForestComparisonService` avec des listes de plantes mockées : cas tout sain, cas tout malade et cas mixte ;
+- test de la formule avec des valeurs limites : `0` plante, `1` plante et plantes toutes au même état ;
+- test d'intégration via MockMvc sur `GET /api/forests/compare` avec deux `forestId` valides et vérification de la structure JSON retournée ;
+- test fonctionnel manuel depuis l'interface : sélection de deux forêts, vérification du bandeau gagnant et des statistiques affichées.
+- test unitaire de `AnalyticsService` avec des données mockées : stress moyen, taux de santé et répartition des états ;
+- test de chaque endpoint analytique via MockMvc : code HTTP `200` et structure JSON retournée ;
+- test fonctionnel manuel : chargement du dashboard et vérification de l'affichage des cinq graphiques avec les données réelles de MongoDB ;
+- test de l'export CSV : vérification des colonnes et des valeurs générées.
+
+#### 2.3.10 Synthèse de la Feature 3
+
+Le comparateur de forêts et le tableau de bord analytique complètent les fonctionnalités météo et soins en ajoutant une lecture décisionnelle du patrimoine végétal. Le comparateur transforme les états de plantes en décision simple entre deux forêts, tandis que le dashboard analytique expose une vision globale, visuelle et exportable de la santé des plantes, des espèces, des forêts et des risques.
+
 ---
 
 ## 3. Tests effectués
 
 ### 3.1 Objectif des tests
 
-La stratégie de tests vise à garantir la fiabilité métier, éviter les régressions, sécuriser les endpoints, valider la génération des tâches, vérifier le traitement météo et assurer la compatibilité avec la CI/CD.
+La stratégie de tests vise à garantir la fiabilité métier, éviter les régressions, sécuriser les endpoints, valider la génération des tâches, vérifier le traitement météo, contrôler le comparateur de forêts, valider le dashboard analytique et assurer la compatibilité avec la CI/CD.
 
 ### 3.2 Tests météo
 
@@ -1227,7 +1367,20 @@ Le projet ne contient pas de tests nommés `TomorrowWebhookVerifierTest` ou `Wea
 
 Le projet ne contient pas de tests nommés `CareTaskControllerTest`, `CarePlanControllerTest`, `CareReschedulingServiceTest` ou `CareCalendarSmokeTest`.
 
-### 3.4 Tests contrôleurs
+### 3.4 Tests Feature 3 - Comparateur de forêts et analytics
+
+| Test présent | Type | Objectif | Résultat attendu |
+|---|---|---|---|
+| `ForestComparisonServiceTest` | Unitaire | Vérifier le score composite avec des listes de plantes mockées | Scores conformes pour les cas sain, malade et mixte |
+| Tests de valeurs limites | Unitaire | Vérifier `0` plante, `1` plante et états homogènes | Aucun calcul incohérent, score `0` si forêt vide |
+| `ForestComparisonControllerTest` | Intégration MockMvc | Appeler `GET /api/forests/compare` avec deux `forestId` valides | Réponse `200 OK` et JSON structuré |
+| Test fonctionnel manuel | Interface | Sélectionner deux forêts et vérifier le bandeau gagnant | Gagnant et statistiques affichés correctement |
+| `AnalyticsServiceTest` | Unitaire | Vérifier les calculs agrégés avec des données mockées | Stress moyen, taux de santé et répartition conformes |
+| `AnalyticsControllerTest` | Intégration MockMvc | Vérifier chaque endpoint `/api/analytics/...` | Réponse `200 OK` et JSON structuré |
+| Test dashboard analytique | Interface | Charger `analytics.html` avec les données MongoDB | Les cinq graphiques Chart.js s'affichent correctement |
+| Test export CSV | Fonctionnel | Exporter le top N des plantes à risque | Colonnes et valeurs conformes |
+
+### 3.5 Tests contrôleurs
 
 Les tests de contrôleurs vérifient les contrats HTTP, les codes de réponse et la délégation vers les services. Les tests suivants sont réellement présents dans `src/test/java/org/example/controllers` :
 
@@ -1237,12 +1390,14 @@ Les tests de contrôleurs vérifient les contrats HTTP, les codes de réponse et
 | `PlantAlertControllerTest` | Alertes plante | Consultation et acquittement |
 | `PlantControllerTest` | Plantes | Opérations CRUD et état |
 | `ForestControllerTest` | Forêts | Gestion des forêts et associations |
+| `ForestComparisonControllerTest` | Comparateur de forêts | Comparaison de deux forêts et structure JSON |
+| `AnalyticsControllerTest` | Tableau de bord analytique | Endpoints analytics et structure JSON |
 | `GreenhouseOpsControllerTest` | Pilotage | Paramètres, erreurs et indicateurs |
 | `EcosystemControllerTest` | Simulation | Appels de simulation et cellules |
 
 Les contrôleurs `CareTaskController` et `CarePlanController` sont couverts indirectement par les tests de services et d'intégration, mais ne disposent pas encore de classes de test dédiées.
 
-### 3.5 Tests CI/CD
+### 3.6 Tests CI/CD
 
 GitHub Actions exécute les tests avec Gradle et archive systématiquement :
 
@@ -1252,7 +1407,7 @@ GitHub Actions exécute les tests avec Gradle et archive systématiquement :
 
 Le workflow de release exécute également les tests avant publication. La CI principale génère JaCoCo, mais n'exécute pas `clean check` : le seuil configuré dans `jacocoTestCoverageVerification` n'est donc pas bloquant dans cette CI.
 
-### 3.6 Couverture JaCoCo
+### 3.7 Couverture JaCoCo
 
 Mesures issues du rapport JaCoCo local vérifié le 13 juin 2026 :
 
@@ -1289,8 +1444,17 @@ La matrice suivante présente la répartition des responsabilités au sein de l'
 | Synchronisation Google Calendar |  | ✓ |  |  |  |
 | Expiration automatique des tâches |  | ✓ |  |  |  |
 | Interface `care-calendar.html` | ✓ | ✓ |  |  |  |
+| Feature 3 - Comparateur de forêts et tableau de bord analytique |  |  |  | ✓ |  |
+| `ForestComparisonController` et endpoint de comparaison |  |  |  | ✓ |  |
+| `ForestComparisonService` et score composite de santé |  |  |  | ✓ |  |
+| DTO `ForestComparisonResult` et réponse JSON |  |  |  | ✓ |  |
+| `AnalyticsController` et endpoints analytiques |  |  |  | ✓ |  |
+| `AnalyticsService` et calculs agrégés |  |  |  | ✓ |  |
+| Interface `analytics.html` et graphiques Chart.js |  |  |  | ✓ |  |
+| Export CSV du tableau des plantes à risque |  |  |  | ✓ |  |
 | Tests Feature 1 |  |  | ✓ |  | ✓ |
 | Tests Feature 2 | ✓ | ✓ |  |  |  |
+| Tests Feature 3 |  |  |  | ✓ |  |
 | GitHub Actions et CI/CD | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Documentation technique DevOps 2 | ✓ | ✓ | ✓ | ✓ | ✓ |
 
@@ -1402,7 +1566,31 @@ Vérifier également :
 | `GET` | `/api/care-plan/{plantId}` | Lire ou créer le plan | ID plante | Plan et tâches | Erreur serveur |
 | `POST` | `/api/care-plan/recompute` | Recalculer les tâches | `forestId`, `plantId` | `200 OK` | Autorisation, erreur serveur |
 
-### 6.4 Exemples JSON
+### 6.4 API Comparateur de forêts
+
+| Méthode | Endpoint | Rôle | Entrée | Sortie | Erreurs |
+|---|---|---|---|---|---|
+| `GET` | `/api/forests/compare` | Comparer deux forêts | `forestId1`, `forestId2` | Scores, statistiques et gagnant | Forêt absente, erreur serveur |
+
+Exemple :
+
+```http
+GET /api/forests/compare?forestId1=<FOREST_ID_1>&forestId2=<FOREST_ID_2>
+```
+
+### 6.5 API Tableau de bord analytique
+
+| Méthode | Endpoint | Rôle | Entrée | Sortie | Erreurs |
+|---|---|---|---|---|---|
+| `GET` | `/api/analytics/global` | Lire les indicateurs globaux | Aucune | Total plantes, forêts actives, taux de santé, stress moyen | Erreur serveur |
+| `GET` | `/api/analytics/stress-distribution` | Lire la répartition des états | Aucune | Pourcentages par état | Erreur serveur |
+| `GET` | `/api/analytics/forest-ranking` | Classer les forêts | Aucune | Liste des forêts triées par score | Erreur serveur |
+| `GET` | `/api/analytics/species-distribution` | Compter les plantes par espèce | Aucune | Distribution par espèce | Erreur serveur |
+| `GET` | `/api/analytics/top-risk` | Lire les plantes les plus à risque | `limit` facultatif | Top N par `stressIndex` décroissant | Erreur serveur |
+| `GET` | `/api/analytics/species-health` | Lire la santé par espèce | Aucune | Pourcentages saines/malades et stress moyen | Erreur serveur |
+| `GET` | `/api/analytics/environmental` | Lire les moyennes environnementales | Aucune | Température, humidité, eau, luminosité par forêt | Erreur serveur |
+
+### 6.6 Exemples JSON
 
 **Génération de tâches**
 
@@ -1446,7 +1634,7 @@ Vérifier également :
 
 ## 7. Conclusion
 
-GreenDesk associe deux fonctionnalités métier complémentaires à une chaîne DevOps complète. Le jumeau numérique météo reçoit les alertes, calcule leurs impacts et met à jour les plantes. Le calendrier de soins transforme ces informations et les besoins biologiques en tâches priorisées, suivies et éventuellement synchronisées avec Google Calendar.
+GreenDesk associe trois fonctionnalités métier complémentaires à une chaîne DevOps complète. Le jumeau numérique météo reçoit les alertes, calcule leurs impacts et met à jour les plantes. Le calendrier de soins transforme ces informations et les besoins biologiques en tâches priorisées, suivies et éventuellement synchronisées avec Google Calendar. Le comparateur de forêts et le tableau de bord analytique ajoutent une lecture décisionnelle directe en comparant les forêts, en visualisant les indicateurs globaux et en identifiant les plantes les plus à risque.
 
 GitHub Actions assure la compilation, les tests, la mesure JaCoCo, la publication de la documentation, la génération des PDF et la création des releases. Les artefacts publiés offrent une traçabilité directe entre le code, les résultats de validation et la documentation de livraison.
 
